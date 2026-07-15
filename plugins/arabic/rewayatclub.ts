@@ -7,7 +7,7 @@ import { defaultCover } from '@libs/defaultCover';
 class RewayatClub implements Plugin.PagePlugin {
   id = 'rewayatclub';
   name = 'Rewayat Club';
-  version = '1.0.1';
+  version = '1.0.2';
   icon = 'src/ar/rewayatclub/icon.png';
   site = 'https://rewayat.club/';
 
