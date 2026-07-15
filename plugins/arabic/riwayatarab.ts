@@ -8,7 +8,7 @@ class RiwayatArab implements Plugin.PagePlugin {
 
   name = 'RiwayatArab';
 
-  version = '1.0.0';
+  version = '1.0.3';
 
   icon = 'src/ar/riwayatarab/icon.png';
 
