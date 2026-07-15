@@ -8,7 +8,7 @@ class RiwayatArab implements Plugin.PagePlugin {
 
   name = 'RiwayatArab';
 
-  version = '1.0.3';
+  version = '1.0.4';
 
   icon = 'src/ar/riwayatarab/icon.png';
 
@@ -86,136 +86,128 @@ class RiwayatArab implements Plugin.PagePlugin {
     return novels;
   }
   async parseNovel(
-    novelUrl: string,
-  ): Promise<Plugin.SourceNovel & { totalPages: number }> {
+  novelUrl: string,
+): Promise<Plugin.SourceNovel & { totalPages: number }> {
 
-    const html = await fetchApi(
-      new URL(novelUrl, this.site).toString(),
-    ).then(r => r.text());
+  const html = await fetchApi(
+    new URL(novelUrl, this.site).toString(),
+  ).then(r => r.text());
 
-    const $ = parseHTML(html);
+  const $ = parseHTML(html);
 
-    const novel: Plugin.SourceNovel & {
-      totalPages: number;
-    } = {
-      path: novelUrl,
-      name:
-        $('h1').first().text().trim() || 'Untitled',
-      cover:
-        $('img').first().attr('src') ??
-        defaultCover,
-      author:
-        $('a[href*="/author"]').first().text().trim(),
-      summary:
-        $('.prose').first().text().trim() ||
-        $('meta[name="description"]').attr('content') ||
-        '',
-      status: 'Unknown',
-      genres: '',
-      chapters: [],
-      totalPages: 1,
-    };
+  const script = html.match(/self\.__next_f\.push\((.*?)\);/gs);
 
-    const genres: string[] = [];
+  const novel: Plugin.SourceNovel & {
+    totalPages: number;
+  } = {
+    path: novelUrl,
+    name: $('h1').first().text().trim() || 'Untitled',
+    cover: defaultCover,
+    author: '',
+    summary: '',
+    status: 'Unknown',
+    genres: '',
+    chapters: [],
+    totalPages: 1,
+  };
 
-    $('a[href*="/genre/"]').each((_, el) => {
-      const text = $(el).text().trim();
+  if (script) {
+    const text = script.join("\n");
 
-      if (text.length > 0)
-        genres.push(text);
-    });
+    const cover = text.match(/https?:\/\/[^"]+\.(jpg|jpeg|png|webp)/i);
+    if (cover) novel.cover = cover[0];
 
-    novel.genres = genres.join(',');
+    const summary = text.match(/description["']?:["']([^"]+)/i);
+    if (summary) novel.summary = summary[1];
 
-    const chapterLinks = $(
-      'a[href*="/chapter/"]',
-    ).length;
-
-    novel.totalPages =
-      Math.max(1, Math.ceil(chapterLinks / 50));
-
-    return novel;
+    const author = text.match(/author["']?:["']([^"]+)/i);
+    if (author) novel.author = author[1];
   }
+
+  return novel;
+}
 
   async parsePage(
-    novelPath: string,
-    page: string,
-  ): Promise<Plugin.SourcePage> {
+  novelPath: string,
+  page: string,
+): Promise<Plugin.SourcePage> {
 
-    const html = await fetchApi(
-      new URL(
-        `${novelPath}/chapters?page=${page}`,
-        this.site,
-      ).toString(),
-    ).then(r => r.text());
+  const html = await fetchApi(
+    new URL(novelPath, this.site).toString(),
+  ).then(r => r.text());
 
-    const $ = parseHTML(html);
+  const $ = parseHTML(html);
 
-    const chapters: Plugin.ChapterItem[] = [];
+  const chapters: Plugin.ChapterItem[] = [];
 
-    $('a[href*="/chapter/"]').each((_, el) => {
+  const added = new Set<string>();
 
-      const href = $(el).attr('href');
+  $('a[href*="/chapter/"]').each((_, el) => {
 
-      if (!href) return;
+    const href = $(el).attr('href');
+    if (!href || added.has(href)) return;
 
-      const title =
-        $(el).text().trim();
+    added.add(href);
 
-      const number =
-        Number(
-          href.match(/chapter\/(\d+)/)?.[1] ?? 0,
-        );
+    const number = Number(
+      href.match(/chapter\/(\d+)/)?.[1] ?? 0,
+    );
 
-      chapters.push({
-        name: title,
-        path: href.replace(this.site, ''),
-        chapterNumber: number,
-      });
-
+    chapters.push({
+      name: $(el).text().trim() || `Chapter ${number}`,
+      path: href.replace(this.site, ''),
+      chapterNumber: number,
     });
 
-    return {
-      chapters,
-    };
-  }
+  });
+
+  chapters.sort(
+    (a, b) => a.chapterNumber - b.chapterNumber,
+  );
+
+  return {
+    chapters,
+  };
+}
   async parseChapter(
-    chapterUrl: string,
-  ): Promise<string> {
+  chapterUrl: string,
+): Promise<string> {
 
-    const html = await fetchApi(
-      new URL(chapterUrl, this.site).toString(),
-    ).then(r => r.text());
+  const html = await fetchApi(
+    new URL(chapterUrl, this.site).toString(),
+  ).then(r => r.text());
 
-    const $ = parseHTML(html);
+  const $ = parseHTML(html);
 
-    let content = '';
+  const selectors = [
+    'article',
+    'main article',
+    '.prose',
+    '.chapter-content',
+    '[class*="chapter"]',
+    '[class*="content"]',
+  ];
 
-    const containers = [
-      '.chapter-content',
-      '.prose',
-      'article',
-      'main article',
-      '[class*="chapter"]',
-    ];
+  for (const selector of selectors) {
+    const node = $(selector).first();
 
-    for (const selector of containers) {
-      const node = $(selector).first();
-
-      if (node.length) {
-        content = node.html() ?? '';
-        break;
-      }
+    if (node.length && node.text().trim().length > 100) {
+      return node.html() ?? '';
     }
-
-    if (!content) {
-      $('p').each((_, el) => {
-        content += `<p>${$(el).html() ?? ''}</p>`;
-      });
-    }
-
-    return content.trim();
   }
+
+  let content = '';
+
+  $('p').each((_, el) => {
+    const text = $(el).html();
+
+    if (text && text.trim().length > 0) {
+      content += `<p>${text}</p>`;
+    }
+  });
+
+  return content.trim();
+}
 
   filters = {};
 }
