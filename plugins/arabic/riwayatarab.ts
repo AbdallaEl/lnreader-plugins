@@ -8,7 +8,7 @@ class RiwayatArab implements Plugin.PluginBase {
 
   name = 'RiwayatArab';
 
-  version = '1.0.5';
+  version = '1.0.6';
 
   icon = 'src/ar/riwayatarab/icon.png';
 
@@ -42,7 +42,7 @@ class RiwayatArab implements Plugin.PluginBase {
 
       novels.push({
         name: title,
-        path: href.replace(this.site, ''),
+        path: href.replace(this.site, '').replace(/^\/+/, ''),
         cover,
       });
     });
@@ -78,7 +78,7 @@ class RiwayatArab implements Plugin.PluginBase {
           $(el).attr('title') ||
           'Novel',
 
-        path: href.replace(this.site, ''),
+        path: href.replace(this.site, '').replace(/^\/+/, ''),
 
         cover:
           $(el).find('img').attr('src') ??
@@ -175,7 +175,7 @@ class RiwayatArab implements Plugin.PluginBase {
 
         chapters.push({
           name: $(el).text().trim() || `Chapter ${number}`,
-          path: href.replace(this.site, ''),
+          path: href.replace(this.site, '').replace(/^\/+/, ''),
           chapterNumber: number,
         });
       });
