@@ -8,7 +8,7 @@ class RiwayatArab implements Plugin.PluginBase {
 
   name = 'RiwayatArab';
 
-  version = '1.0.6';
+  version = '1.0.7';
 
   icon = 'src/ar/riwayatarab/icon.png';
 
@@ -32,9 +32,10 @@ class RiwayatArab implements Plugin.PluginBase {
       added.add(href);
 
       const title =
-        $(el).find('h3').text().trim() ||
-        $(el).attr('title') ||
-        'Novel';
+  $(el).find('h3, h2, .title').first().text().trim() ||
+  $(el).text().trim() ||
+  $(el).attr('title') ||
+  'Novel';
 
       const cover =
         $(el).find('img').attr('src') ??
@@ -78,8 +79,7 @@ class RiwayatArab implements Plugin.PluginBase {
           $(el).attr('title') ||
           'Novel',
 
-        path: href.replace(this.site, '').replace(/^\/+/, ''),
-
+        path: new URL(href, this.site).pathname.replace(/^\/+/, ''),
         cover:
           $(el).find('img').attr('src') ??
           defaultCover,
